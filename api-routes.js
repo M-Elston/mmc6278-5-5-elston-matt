@@ -1,8 +1,6 @@
 const router = require('express').Router()
 const db = require('./db')
 
-router
-  .route('/inventory')
   // TODO: Create a GET route that returns a list of everything in the inventory table
   // The response should look like:
   // [
@@ -18,13 +16,38 @@ router
   //   {...}, etc
   // ]
 
+  router.get('/inventory', async (req, res) => {
+    try {
+      const [results] = await db.query('SELECT * FROM inventory');
+      res.json(results);
+    } catch (err) {
+      console.error('Error retrieving inventory:', err);
+      res.status(500).json({error: 'Internal server error'});
+    }
+  });
+    
   // TODO: Create a POST route that inserts inventory items
   // This route will accept price, quantity, name, image, and description as JSON
   // in the request body.
   // It should return a 204 status code
 
-router
-  .route('/inventory/:id')
+  router.post('/inventory', async (req, res) => {
+    try {
+      const {price, quantity, name, image, description} = req.body;
+      const query = `
+      INSERT INTO inventory (price, quantity, name, image, description)
+      VALUES (?, ?, ?, ?, ?)
+      `;
+
+      await db.query(query, [price, quantity, name, image, description]);
+      
+      res.status(204).end();
+    } catch (err) {
+      console.error('Error inserting inventory item:', err);
+      res.status(500).json({error: 'Internal server error'});
+    }
+  });
+
   // TODO: Write a GET route that returns a single item from the inventory
   // that matches the id from the route parameter
   // Should return 404 if no item is found
@@ -38,6 +61,22 @@ router
   //   "quantity": 3
   // }
 
+  router.get('/inventory/:id', async (req, res) => {
+    try {
+      const {id} = req.params;
+      const [results] = await db.query('SELECT * FROM inventory WHERE id = ?', [id]);
+
+      if (results.length === 0) {
+        return res.status(404).json({error: 'Item not found'});
+      }
+
+      res.json(results[0]);
+    } catch  (err) {
+      console.error('Error retrieving inventory item:', err);
+      res.status(500).json({error: 'Internal server error'});
+    }
+  });
+
   // TODO: Create a PUT route that updates the inventory table based on the id
   // in the route parameter.
   // This route should accept price, quantity, name, description, and image
@@ -45,10 +84,49 @@ router
   // If no item is found, return a 404 status.
   // If an item is modified, return a 204 status code.
 
+  router.put('/inventory/:id', async (req, res) => {
+    try {
+      const {id} = req.params;
+      const {price, quantity, name, description, image} = req.body;
+      const query = `
+        UPDATE inventory
+        SET price = ?, quantity = ?, name = ?, description = ?, image = ?
+        WHERE id = ?
+      `;
+
+      const [result] = await db.query(query, [price, quantity, name, description, image, id]);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({error: 'Item not found'});
+      }
+
+      res.status(204).end();
+    } catch (err) {
+      console.error('Error updating inventory item:', err);
+      res.status(500).json({error: 'Internal server error'});
+    }
+  });
+
   // TODO: Create a DELETE route that deletes an item from the inventory table
   // based on the id in the route parameter.
   // If no item is found, return a 404 status.
   // If an item is deleted, return a 204 status code.
+
+  router.delete('/inventory/:id', async (req, res) => {
+    try {
+      const {id} = req.params;
+      const [result] = await db.query('DELETE FROM inventory WHERE id = ?', [id]);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({error: 'Item not found'});
+      }
+
+      res.status(204).end();
+    } catch (err) {
+      console.error('Error deleting inventory item:', err);
+      res.status(500).json({error: 'Internal server error'});
+    }
+  });
 
 router
   .route('/cart')
